@@ -10,8 +10,8 @@ const unsigned long DEFAULT_SLEEP_TIME = 27900000L;
 const int DEBUG_SLEEP_TIME = 2000;
 
 
-unsigned long sleepTime = DEBUG_SLEEP_TIME;
-//unsigned long sleepTime = DEFAULT_SLEEP_TIME;
+//unsigned long sleepTime = DEBUG_SLEEP_TIME;
+unsigned long sleepTime = DEFAULT_SLEEP_TIME;
 
 bool wasSwitchDown = LOW;
 bool isVibrating = false;
@@ -30,9 +30,9 @@ void toggleAlarm(bool state) {
 void quickVibe(int times, int wait) {
   for (int i = 0; i < times; i++) {
     toggleAlarm(HIGH);
-    delay(wait);
+    delay(wait*0.75);
     toggleAlarm(LOW);
-    delay(wait);
+    delay(wait*1.25);
   }
 }
 
@@ -48,6 +48,39 @@ void setup() {
   digitalWrite(SWITCH, HIGH);
 }
 
+void deactivate(bool isDebugMode) {
+  // alarm already set, but not yet going off, deactivate
+  setTime = 0;
+  delay(100);
+  if (isDebugMode) {
+    quickVibe(2, 75);
+  } else {
+    quickVibe(2, 150);
+  }
+}
+
+void stopVibrating() {
+  setTime = 0;
+  isVibrating = false;
+  toggleAlarm(LOW);
+  delay(100);
+}
+
+void setAlarm(bool isDebugMode) {
+  delay(100);
+  if (isDebugMode) {
+    quickVibe(3, 100);
+  } else {
+    // 5 buzzes to indicate 5 sleep cycles
+    quickVibe(5, 150);
+  }
+
+  // set the time to go off in the future
+  // round to the nearest even second plus a milli to ensure 
+  // that the alarm goes off with a full vibration pulse instead 
+  // of a partial one due to starting mid-second
+  setTime = ((millis() + sleepTime) / 2000L) * 2000L + 1L;
+}
 
 void loop() {
   bool isSwitchDown = !digitalRead(SWITCH);
@@ -86,34 +119,13 @@ void loop() {
 
     if (setTime > 0 && !isVibrating) {
       // alarm already set, but not yet going off, deactivate
-      setTime = 0;
-      delay(100);
-      if (isDebugMode) {
-        quickVibe(2, 75);
-      } else {
-        quickVibe(2, 150);
-      }
+      deactivate(isDebugMode);
     } else if (isVibrating) {
       // alarm was sounding, turn it off
-      setTime = 0;
-      isVibrating = false;
-      toggleAlarm(LOW);
-      delay(100);
+      stopVibrating();
     } else {
       // activate alarm
-      delay(100);
-      if (isDebugMode) {
-        quickVibe(3, 75);
-      } else {
-        // 5 buzzes to indicate 5 sleep cycles
-        quickVibe(5, 150);
-      }
-
-      // set the time to go off in the future
-      // round to the nearest even second plus a milli to ensure 
-      // that the alarm goes off with a full vibration pulse instead 
-      // of a partial one due to starting mid-second
-      setTime = ((millis() + sleepTime) / 2000L) * 2000L + 1L;
+      setAlarm(isDebugMode);
     }
     delay(100);
   }
@@ -126,8 +138,8 @@ void loop() {
 
   if (isVibrating) {
     // alternate vibration on and off every second
-    now = millis()/1000;
-    if (now % 2 == 0) {
+    now = millis()/500;
+    if (now % 3 == 0) {
       toggleAlarm(HIGH);
     } else {
       toggleAlarm(LOW);
